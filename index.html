@@ -1205,6 +1205,126 @@
       margin: 0;
     }
 
+    /* New styles for comparison view */
+    .comparison-table {
+      margin-bottom: 30px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    
+    .comparison-table table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .comparison-table th, .comparison-table td {
+      border: 1px solid #e2e8f0;
+      padding: 15px;
+      text-align: left;
+    }
+    
+    .comparison-table th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .comparison-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    
+    .comparison-table tr:hover {
+      background-color: #edf2f7;
+      transition: background-color 0.2s ease;
+    }
+    
+    .comparison-table .amount {
+      text-align: right;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 600;
+    }
+    
+    .comparison-table .difference-positive {
+      color: #38a169;
+      font-weight: 600;
+    }
+    
+    .comparison-table .difference-negative {
+      color: #e53e3e;
+      font-weight: 600;
+    }
+    
+    .comparison-table .difference-neutral {
+      color: #4a5568;
+      font-weight: 600;
+    }
+    
+    .comparison-card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid #e2e8f0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .comparison-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+    }
+    
+    .comparison-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+    }
+    
+    .comparison-card h3 {
+      margin: 0 0 15px 0;
+      color: #4a5568;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .comparison-card .amount-big {
+      font-size: 20px;
+      font-weight: 700;
+      color: #667eea;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    
+    .comparison-card .percentage {
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 5px;
+    }
+    
+    .comparison-card .percentage-positive {
+      color: #38a169;
+    }
+    
+    .comparison-card .percentage-negative {
+      color: #e53e3e;
+    }
+    
+    .comparison-card .percentage-neutral {
+      color: #4a5568;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -1381,6 +1501,11 @@
       </div>
 
       <div class="search-box">
+        <h3><i class="fas fa-balance-scale"></i> Age Analysis with Comparison</h3>
+        <button onclick="showAgeAnalysisWithComparison()"><i class="fas fa-chart-line"></i> Show Comparison with Previous Week</button>
+      </div>
+
+      <div class="search-box">
         <h3><i class="fas fa-receipt"></i> SVAT Invoices</h3>
         <button onclick="showSVATInvoices()"><i class="fas fa-file-invoice-dollar"></i> Show SVAT Invoices</button>
       </div>
@@ -1466,6 +1591,7 @@
     let rawAgeFilterData = {};
     let rawExceeding360Data = null;
     let selectedReportingMonth = null;
+    let rawComparisonData = null;
 
     // Function to toggle the age filter container visibility
     function toggleAgeFilterContainer() {
@@ -1473,7 +1599,7 @@
       container.classList.toggle('show');
       
       // Change button text based on visibility
-      const button = document.querySelector('.search-box:nth-child(8) button');
+      const button = document.querySelector('.search-box:nth-child(9) button');
       if (container.classList.contains('show')) {
         button.innerHTML = '<i class="fas fa-times"></i> Hide Age Filter Options';
       } else {
@@ -1491,6 +1617,51 @@
       } catch (error) {
         console.error('Error fetching sheet data:', error);
         return [];
+      }
+    }
+
+    // New function to fetch previous week's totals from specific cells
+    async function fetchPreviousWeekTotals() {
+      try {
+        const res = await fetch(SHEET_URL);
+        const text = await res.text();
+        const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+        
+        if (!json.table || !json.table.rows || json.table.rows.length < 6) {
+          return {
+            '0-30': 0,
+            '31-60': 0,
+            '61-90': 0,
+            '91-180': 0,
+            '181-360': 0,
+            '>360': 0,
+            total: 0
+          };
+        }
+        
+        // Get the 6th row (index 5) which contains the previous week's totals
+        const row = json.table.rows[5];
+        
+        return {
+          '0-30': row.c[19]?.v || 0,    // Cell T1 (index 19)
+          '31-60': row.c[20]?.v || 0,   // Cell U1 (index 20)
+          '61-90': row.c[21]?.v || 0,   // Cell V1 (index 21)
+          '91-180': row.c[22]?.v || 0,  // Cell W1 (index 22)
+          '181-360': row.c[23]?.v || 0, // Cell X1 (index 23)
+          '>360': row.c[24]?.v || 0,    // Cell Y1 (index 24)
+          total: row.c[25]?.v || 0       // Cell Z1 (index 25)
+        };
+      } catch (error) {
+        console.error('Error fetching previous week totals:', error);
+        return {
+          '0-30': 0,
+          '31-60': 0,
+          '61-90': 0,
+          '91-180': 0,
+          '181-360': 0,
+          '>360': 0,
+          total: 0
+        };
       }
     }
 
@@ -1565,10 +1736,11 @@
       rawAgeFilterData = {};
       rawExceeding360Data = null;
       selectedReportingMonth = null;
+      rawComparisonData = null;
       
       // Hide age filter container on logout
       document.getElementById('ageFilterContainer').classList.remove('show');
-      const button = document.querySelector('.search-box:nth-child(8) button');
+      const button = document.querySelector('.search-box:nth-child(9) button');
       button.innerHTML = '<i class="fas fa-filter"></i> Show Age Filter Options';
     }
 
@@ -1748,6 +1920,9 @@
       } else if (viewType === 'ageAnalysis' && rawAgeAnalysisData) {
         const sortedData = sortData([...rawAgeAnalysisData], sortType);
         renderAgeAnalysis(sortedData);
+      } else if (viewType === 'ageAnalysisComparison' && rawAgeAnalysisData && rawComparisonData) {
+        const sortedData = sortData([...rawAgeAnalysisData], sortType);
+        renderAgeAnalysisWithComparison(sortedData, rawComparisonData);
       } else if (viewType === 'svat' && rawSVATData) {
         const sortedData = sortData([...rawSVATData], sortType);
         renderSVATInvoices(sortedData);
@@ -1766,6 +1941,715 @@
       }
     }
 
+    // New function to show age analysis with comparison to previous week
+    async function showAgeAnalysisWithComparison() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `<div class="not-found"><i class="fas fa-spinner fa-spin"></i> Loading age analysis data with comparison...</div>`;
+
+      // Fetch current age analysis data
+      const rows = await fetchSheetData();
+      const customerAgeData = {};
+
+      rows.forEach(row => {
+        const siteCode = row.c[1]?.v?.toString().toUpperCase() || '';
+        const customerName = row.c[2]?.v?.toString() || '';
+        const description = row.c[5]?.v || '';
+        const amountRaw = row.c[6]?.v || 0;
+        const date = row.c[4]?.f || row.c[4]?.v || '';
+
+        if (!siteCode || !customerName) return;
+
+        const customerKey = `${customerName} (${siteCode})`;
+
+        if (!customerAgeData[customerKey]) {
+          customerAgeData[customerKey] = {
+            customerName,
+            siteCode,
+            '0-30': 0,
+            '31-60': 0,
+            '61-90': 0,
+            '91-180': 0,
+            '181-360': 0,
+            '>360': 0,
+            total: 0
+          };
+        }
+
+        const age = calculateAge(date);
+        const bracket = getAgeBracket(age);
+        
+        let amount = amountRaw;
+        if (description.toLowerCase() === 'payment') {
+          amount = -Math.abs(amountRaw);
+        }
+        
+        customerAgeData[customerKey][bracket] += amount;
+        customerAgeData[customerKey].total += amount;
+      });
+
+      const ageAnalysisArray = Object.entries(customerAgeData).map(([key, data]) => ({
+        key,
+        ...data
+      })).filter(item => item.total !== 0);
+
+      // Fetch previous week's totals
+      const previousWeekTotals = await fetchPreviousWeekTotals();
+
+      // Calculate current totals
+      const currentTotals = {
+        '0-30': 0,
+        '31-60': 0,
+        '61-90': 0,
+        '91-180': 0,
+        '181-360': 0,
+        '>360': 0,
+        total: 0
+      };
+
+      ageAnalysisArray.forEach(item => {
+        currentTotals['0-30'] += item['0-30'];
+        currentTotals['31-60'] += item['31-60'];
+        currentTotals['61-90'] += item['61-90'];
+        currentTotals['91-180'] += item['91-180'];
+        currentTotals['181-360'] += item['181-360'];
+        currentTotals['>360'] += item['>360'];
+        currentTotals.total += item.total;
+      });
+
+      // Calculate differences and percentages
+      const comparisonData = {
+        '0-30': {
+          current: currentTotals['0-30'],
+          previous: previousWeekTotals['0-30'],
+          difference: currentTotals['0-30'] - previousWeekTotals['0-30'],
+          percentage: previousWeekTotals['0-30'] !== 0 ? 
+            ((currentTotals['0-30'] - previousWeekTotals['0-30']) / previousWeekTotals['0-30'] * 100) : 0
+        },
+        '31-60': {
+          current: currentTotals['31-60'],
+          previous: previousWeekTotals['31-60'],
+          difference: currentTotals['31-60'] - previousWeekTotals['31-60'],
+          percentage: previousWeekTotals['31-60'] !== 0 ? 
+            ((currentTotals['31-60'] - previousWeekTotals['31-60']) / previousWeekTotals['31-60'] * 100) : 0
+        },
+        '61-90': {
+          current: currentTotals['61-90'],
+          previous: previousWeekTotals['61-90'],
+          difference: currentTotals['61-90'] - previousWeekTotals['61-90'],
+          percentage: previousWeekTotals['61-90'] !== 0 ? 
+            ((currentTotals['61-90'] - previousWeekTotals['61-90']) / previousWeekTotals['61-90'] * 100) : 0
+        },
+        '91-180': {
+          current: currentTotals['91-180'],
+          previous: previousWeekTotals['91-180'],
+          difference: currentTotals['91-180'] - previousWeekTotals['91-180'],
+          percentage: previousWeekTotals['91-180'] !== 0 ? 
+            ((currentTotals['91-180'] - previousWeekTotals['91-180']) / previousWeekTotals['91-180'] * 100) : 0
+        },
+        '181-360': {
+          current: currentTotals['181-360'],
+          previous: previousWeekTotals['181-360'],
+          difference: currentTotals['181-360'] - previousWeekTotals['181-360'],
+          percentage: previousWeekTotals['181-360'] !== 0 ? 
+            ((currentTotals['181-360'] - previousWeekTotals['181-360']) / previousWeekTotals['181-360'] * 100) : 0
+        },
+        '>360': {
+          current: currentTotals['>360'],
+          previous: previousWeekTotals['>360'],
+          difference: currentTotals['>360'] - previousWeekTotals['>360'],
+          percentage: previousWeekTotals['>360'] !== 0 ? 
+            ((currentTotals['>360'] - previousWeekTotals['>360']) / previousWeekTotals['>360'] * 100) : 0
+        },
+        total: {
+          current: currentTotals.total,
+          previous: previousWeekTotals.total,
+          difference: currentTotals.total - previousWeekTotals.total,
+          percentage: previousWeekTotals.total !== 0 ? 
+            ((currentTotals.total - previousWeekTotals.total) / previousWeekTotals.total * 100) : 0
+        }
+      };
+
+      rawAgeAnalysisData = ageAnalysisArray;
+      rawComparisonData = comparisonData;
+      const sortedData = sortData([...ageAnalysisArray], currentSortType);
+      
+      // Save current state to navigation history
+      navigationHistory.push({
+        view: 'ageAnalysisComparison',
+        sortType: currentSortType,
+        data: sortedData,
+        comparisonData: comparisonData
+      });
+      
+      previousView = currentView;
+      currentView = 'ageAnalysisComparison';
+      isWithoutExcessView = false;
+
+      if (sortedData.length === 0) {
+        resultsDiv.innerHTML = `<div class="not-found"><i class="fas fa-exclamation-circle"></i> No outstanding invoices found for age analysis.</div>`;
+        return;
+      }
+
+      renderAgeAnalysisWithComparison(sortedData, comparisonData);
+    }
+
+    function renderAgeAnalysisWithComparison(data, comparisonData) {
+      const resultsDiv = document.getElementById('results');
+      const ageAnalysisArray = data;
+
+      let html = renderSortButtons('ageAnalysisComparison');
+      
+      // Add comparison summary table
+      html += `<div class="section-title"><i class="fas fa-balance-scale"></i> Age Analysis Comparison (Current vs Previous Week)</div>
+               <div class="comparison-table">
+                 <table>
+                   <thead>
+                     <tr>
+                       <th>Age Bracket</th>
+                       <th>Current Week (Rs.)</th>
+                       <th>Previous Week (Rs.)</th>
+                       <th>Difference (Rs.)</th>
+                       <th>Change (%)</th>
+                     </tr>
+                   </thead>
+                   <tbody>`;
+      
+      // Add rows for each age bracket
+      const ageBrackets = ['0-30', '31-60', '61-90', '91-180', '181-360', '>360'];
+      
+      ageBrackets.forEach(bracket => {
+        const current = comparisonData[bracket].current;
+        const previous = comparisonData[bracket].previous;
+        const difference = comparisonData[bracket].difference;
+        const percentage = comparisonData[bracket].percentage;
+        
+        let differenceClass = 'difference-neutral';
+        let percentageClass = 'percentage-neutral';
+        
+        if (difference > 0) {
+          differenceClass = 'difference-positive';
+          percentageClass = 'percentage-positive';
+        } else if (difference < 0) {
+          differenceClass = 'difference-negative';
+          percentageClass = 'percentage-negative';
+        }
+        
+        html += `<tr>
+          <td>${bracket} Days</td>
+          <td class="amount">${formatAmount(current)}</td>
+          <td class="amount">${formatAmount(previous)}</td>
+          <td class="amount ${differenceClass}">${formatAmount(difference)}</td>
+          <td class="amount ${percentageClass}">${percentage.toFixed(1)}%</td>
+        </tr>`;
+      });
+      
+      // Add total row
+      const totalCurrent = comparisonData.total.current;
+      const totalPrevious = comparisonData.total.previous;
+      const totalDifference = comparisonData.total.difference;
+      const totalPercentage = comparisonData.total.percentage;
+      
+      let totalDifferenceClass = 'difference-neutral';
+      let totalPercentageClass = 'percentage-neutral';
+      
+      if (totalDifference > 0) {
+        totalDifferenceClass = 'difference-positive';
+        totalPercentageClass = 'percentage-positive';
+      } else if (totalDifference < 0) {
+        totalDifferenceClass = 'difference-negative';
+        totalPercentageClass = 'percentage-negative';
+      }
+      
+      html += `<tr style="background-color: #e6f2ff; font-weight: 700;">
+        <td>TOTAL</td>
+        <td class="amount">${formatAmount(totalCurrent)}</td>
+        <td class="amount">${formatAmount(totalPrevious)}</td>
+        <td class="amount ${totalDifferenceClass}">${formatAmount(totalDifference)}</td>
+        <td class="amount ${totalPercentageClass}">${totalPercentage.toFixed(1)}%</td>
+      </tr>`;
+      
+      html += `</tbody></table></div>`;
+      
+      // Add detailed age analysis table
+      html += `<div class="section-title"><i class="fas fa-clock"></i> Detailed Age Analysis (Customer Wise)</div>
+               <div class="age-table">
+                 <table>
+                   <thead>
+                     <tr>
+                       <th>Customer Name</th>
+                       <th>Site Code</th>
+                       <th class="age-header">0-30 Days
+</th>
+                       <th class="age-header">31-60 Days</th>
+                       <th class="age-header">61-90 Days</th>
+                       <th class="age-header">91-180 Days</th>
+                       <th class="age-header">181-360 Days</th>
+                       <th class="age-header">>360 Days</th>
+                       <th>Total Outstanding</th>
+                     </tr>
+                   </thead>
+                   <tbody>`;
+  
+      ageAnalysisArray.forEach(item => {
+        html += `<tr>
+          <td>${item.customerName}</td>
+          <td><a class="site-link" onclick="searchBySiteCode('${item.siteCode}')">${item.siteCode}</a></td>
+          <td class="amount">${formatAmount(item['0-30'])}</td>
+          <td class="amount">${formatAmount(item['31-60'])}</td>
+          <td class="amount">${formatAmount(item['61-90'])}</td>
+          <td class="amount">${formatAmount(item['91-180'])}</td>
+          <td class="amount">${formatAmount(item['181-360'])}</td>
+          <td class="amount">${formatAmount(item['>360'])}</td>
+          <td class="amount" style="font-weight: 700;">${formatAmount(item.total)}</td>
+        </tr>`;
+      });
+      
+      html += `<tr style="background-color: #e6f2ff; font-weight: 700;">
+        <td colspan="2" style="text-align: right;">GRAND TOTAL</td>
+        <td class="amount">${formatAmount(totalCurrent)}</td>
+        <td class="amount">${formatAmount(comparisonData['31-60'].current)}</td>
+        <td class="amount">${formatAmount(comparisonData['61-90'].current)}</td>
+        <td class="amount">${formatAmount(comparisonData['91-180'].current)}</td>
+        <td class="amount">${formatAmount(comparisonData['181-360'].current)}</td>
+        <td class="amount">${formatAmount(comparisonData['>360'].current)}</td>
+        <td class="amount">${formatAmount(totalCurrent)}</td>
+      </tr>`;
+      
+      html += `</tbody></table></div>`;
+      
+      // Add comparison summary cards
+      html += `<div class="summary-totals">`;
+      
+      ageBrackets.forEach(bracket => {
+        const current = comparisonData[bracket].current;
+        const previous = comparisonData[bracket].previous;
+        const difference = comparisonData[bracket].difference;
+        const percentage = comparisonData[bracket].percentage;
+        
+        let cardClass = 'comparison-card';
+        let percentageClass = 'percentage-neutral';
+        let icon = 'fa-minus-circle';
+        
+        if (difference > 0) {
+          percentageClass = 'percentage-positive';
+          icon = 'fa-arrow-up';
+        } else if (difference < 0) {
+          percentageClass = 'percentage-negative';
+          icon = 'fa-arrow-down';
+        }
+        
+        html += `<div class="${cardClass}">
+          <h3><i class="fas ${icon}"></i> ${bracket} Days</h3>
+          <div class="amount-big">Rs. ${formatAmount(current)}</div>
+          <div class="${percentageClass}">${percentage > 0 ? '+' : ''}${percentage.toFixed(1)}% from last week</div>
+        </div>`;
+      });
+      
+      // Add total card
+      html += `<div class="comparison-card">
+        <h3><i class="fas fa-chart-line"></i> Total Outstanding</h3>
+        <div class="amount-big">Rs. ${formatAmount(totalCurrent)}</div>
+        <div class="${totalPercentageClass}">${totalPercentage > 0 ? '+' : ''}${totalPercentage.toFixed(1)}% from last week</div>
+      </div>`;
+      
+      html += `</div>`;
+      
+      // Add download buttons
+      html += `<div class="download-container">
+        <button class="download-button" onclick="downloadAgeAnalysisComparisonPDF()"><i class="fas fa-file-pdf"></i> Download as PDF</button>
+        <button class="download-button excel" onclick="downloadAgeAnalysisComparisonExcel()"><i class="fas fa-file-excel"></i> Download as Excel</button>
+      </div>`;
+      
+      html += `<div style="text-align: center;">
+        <button class="go-back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> Go Back</button>
+      </div>`;
+      
+      resultsDiv.innerHTML = html;
+    }
+
+    // Function to download the age analysis comparison as PDF
+    function downloadAgeAnalysisComparisonPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+      doc.setFontSize(14);
+      doc.text('DOK Solutions Lanka (Pvt) Ltd', 40, 40);
+      doc.setFontSize(12);
+      doc.text('Age Analysis Comparison (Current vs Previous Week)', 40, 60);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 80);
+
+      // Add comparison table
+      const comparisonTable = document.querySelector('#results .comparison-table table');
+      
+      doc.autoTable({
+        html: comparisonTable,
+        startY: 100,
+        theme: 'grid',
+        headStyles: { fillColor: [51,153,255], halign: 'center', fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [204,204,204], lineWidth: 0.1 },
+        columnStyles: { 
+          1: { halign: 'right' },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' }
+        },
+        margin: { left: 40, right: 40 },
+      });
+
+      // Add detailed age analysis table
+      const ageTable = document.querySelector('#results .age-table table');
+      
+      doc.autoTable({
+        html: ageTable,
+        startY: doc.lastAutoTable.finalY + 20,
+        theme: 'grid',
+        headStyles: { fillColor: [51,153,255], halign: 'center', fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [204,204,204], lineWidth: 0.1 },
+        columnStyles: { 
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' }
+        },
+        margin: { left: 40, right: 40 },
+      });
+
+      doc.save('Age Analysis Comparison.pdf');
+    }
+
+    // Function to download the age analysis comparison as Excel
+    function downloadAgeAnalysisComparisonExcel() {
+      const wb = XLSX.utils.book_new();
+      
+      const reportDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Create comparison worksheet
+      const comparisonWsData = [];
+      
+      comparisonWsData.push(['DOK Solutions Lanka (Pvt) Ltd']);
+      comparisonWsData.push(['Age Analysis Comparison (Current vs Previous Week)']);
+      comparisonWsData.push([`As of: ${reportDate}`]);
+      comparisonWsData.push([`Generated: ${new Date().toLocaleString()}`]);
+      comparisonWsData.push([]);
+      
+      comparisonWsData.push([
+        'Age Bracket', 
+        'Current Week (Rs.)', 
+        'Previous Week (Rs.)', 
+        'Difference (Rs.)', 
+        'Change (%)'
+      ]);
+      
+      // Get comparison data
+      const comparisonTable = document.querySelector('#results .comparison-table tbody');
+      if (comparisonTable) {
+        const rows = Array.from(comparisonTable.rows);
+        rows.forEach(row => {
+          const rowData = [];
+          for (let i = 0; i < row.cells.length; i++) {
+            let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
+            
+            if (i >= 1 && i <= 4) {
+              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '').replace('%', '');
+              cellValue = parseFloat(cellValue) || 0;
+            }
+            
+            rowData.push(cellValue);
+          }
+          comparisonWsData.push(rowData);
+        });
+      }
+      
+      const comparisonWs = XLSX.utils.aoa_to_sheet(comparisonWsData);
+      
+      const comparisonColWidths = [
+        { wch: 20 }, 
+        { wch: 20 }, 
+        { wch: 20 }, 
+        { wch: 20 }, 
+        { wch: 15 }
+      ];
+      comparisonWs['!cols'] = comparisonColWidths;
+      
+      // Format comparison worksheet
+      const comparisonRange = XLSX.utils.decode_range(comparisonWs['!ref']);
+      
+      for (let R = 0; R <= comparisonRange.e.r; ++R) {
+        for (let C = 0; C <= comparisonRange.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!comparisonWs[cellAddress]) continue;
+          
+          if (R === 0) {
+            comparisonWs[cellAddress].s = {
+              font: { bold: true, sz: 16, color: { rgb: "00264D" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+            if (C === 0) {
+              comparisonWs['!merges'] = comparisonWs['!merges'] || [];
+              comparisonWs['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
+            }
+          }
+          else if (R === 1) {
+            comparisonWs[cellAddress].s = {
+              font: { bold: true, sz: 14, color: { rgb: "003366" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+            if (C === 0) {
+              comparisonWs['!merges'] = comparisonWs['!merges'] || [];
+              comparisonWs['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
+            }
+          }
+          else if (R === 2 || R === 3) {
+            comparisonWs[cellAddress].s = {
+              font: { sz: 11, color: { rgb: "666666" } },
+              alignment: { horizontal: "center" }
+            };
+            if (C === 0) {
+              comparisonWs['!merges'] = comparisonWs['!merges'] || [];
+              comparisonWs['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 4 } });
+            }
+          }
+          else if (R === 5) {
+            comparisonWs[cellAddress].s = {
+              font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "3399FF" } },
+              alignment: { horizontal: "center", vertical: "center", wrapText: true },
+              border: {
+                top: { style: "thin", color: { rgb: "CCE0FF" } },
+                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
+                left: { style: "thin", color: { rgb: "CCE0FF" } },
+                right: { style: "thin", color: { rgb: "CCE0FF" } }
+              }
+            };
+          }
+          else if (R > 5 && R < comparisonWsData.length - 1) {
+            comparisonWs[cellAddress].s = {
+              font: { sz: 11 },
+              alignment: { 
+                horizontal: (C >= 1 && C <= 4) ? "right" : "left",
+                vertical: "center"
+              },
+              border: {
+                top: { style: "thin", color: { rgb: "E6F2FF" } },
+                bottom: { style: "thin", color: { rgb: "E6F2FF" } },
+                left: { style: "thin", color: { rgb: "E6F2FF" } },
+                right: { style: "thin", color: { rgb: "E6F2FF" } }
+              },
+              fill: { fgColor: { rgb: "FFFFFF" } }
+            };
+            
+            if (C >= 1 && C <= 3) {
+              comparisonWs[cellAddress].z = '"Rs. "#,##0.00';
+            } else if (C === 4) {
+              comparisonWs[cellAddress].z = '#,##0.00"%';
+            }
+          }
+          else if (R === comparisonWsData.length - 1) {
+            comparisonWs[cellAddress].s = {
+              font: { bold: true, sz: 12, color: { rgb: "00264D" } },
+              fill: { fgColor: { rgb: "E6F2FF" } },
+              alignment: { 
+                horizontal: (C >= 1 && C <= 4) ? "right" : "right",
+                vertical: "center"
+              },
+              border: {
+                top: { style: "medium", color: { rgb: "3399FF" } },
+                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
+                left: { style: "thin", color: { rgb: "CCE0FF" } },
+                right: { style: "thin", color: { rgb: "CCE0FF" } }
+              }
+            };
+            
+            if (C >= 1 && C <= 3) {
+              comparisonWs[cellAddress].z = '"Rs. "#,##0.00';
+            } else if (C === 4) {
+              comparisonWs[cellAddress].z = '#,##0.00"%';
+            }
+          }
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(wb, comparisonWs, "Comparison");
+      
+      // Create detailed age analysis worksheet
+      const ageWsData = [];
+      
+      ageWsData.push(['DOK Solutions Lanka (Pvt) Ltd']);
+      ageWsData.push(['Detailed Age Analysis (Customer Wise)']);
+      ageWsData.push([`As of: ${reportDate}`]);
+      ageWsData.push([`Generated: ${new Date().toLocaleString()}`]);
+      ageWsData.push([]);
+      
+      ageWsData.push([
+        'Customer Name', 
+        'Site Code', 
+        '0-30 Days', 
+        '31-60 Days', 
+        '61-90 Days', 
+        '91-180 Days', 
+        '181-360 Days', 
+        '>360 Days', 
+        'Total Outstanding'
+      ]);
+      
+      const ageTable = document.querySelector('#results .age-table tbody');
+      if (ageTable) {
+        const rows = Array.from(ageTable.rows).slice(0, -1);
+        rows.forEach(row => {
+          const rowData = [];
+          for (let i = 0; i < row.cells.length; i++) {
+            let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
+            
+            if (i >= 2 && i <= 8) {
+              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
+              cellValue = parseFloat(cellValue) || 0;
+            }
+            
+            rowData.push(cellValue);
+          }
+          ageWsData.push(rowData);
+        });
+        
+        const totalsRow = ageTable.rows[ageTable.rows.length - 1];
+        if (totalsRow) {
+          const totalsData = [];
+          for (let i = 0; i < totalsRow.cells.length; i++) {
+            let cellValue = totalsRow.cells[i].innerText || totalsRow.cells[i].textContent || '';
+            
+            if (i >= 2 && i <= 8) {
+              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
+              cellValue = parseFloat(cellValue) || 0;
+            }
+            
+            totalsData.push(cellValue);
+          }
+          ageWsData.push(totalsData);
+        }
+      }
+      
+      const ageWs = XLSX.utils.aoa_to_sheet(ageWsData);
+      
+      const ageColWidths = [
+        { wch: 35 }, 
+        { wch: 15 }, 
+        { wch: 18 }, 
+        { wch: 18 }, 
+        { wch: 18 }, 
+        { wch: 18 }, 
+        { wch: 18 }, 
+        { wch: 18 }, 
+        { wch: 22 }
+      ];
+      ageWs['!cols'] = ageColWidths;
+      
+      // Format age analysis worksheet
+      const ageRange = XLSX.utils.decode_range(ageWs['!ref']);
+      
+      for (let R = 0; R <= ageRange.e.r; ++R) {
+        for (let C = 0; C <= ageRange.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ageWs[cellAddress]) continue;
+          
+          if (R === 0) {
+            ageWs[cellAddress].s = {
+              font: { bold: true, sz: 16, color: { rgb: "00264D" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+            if (C === 0) {
+              ageWs['!merges'] = ageWs['!merges'] || [];
+              ageWs['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } });
+            }
+          }
+          else if (R === 1) {
+            ageWs[cellAddress].s = {
+              font: { bold: true, sz: 14, color: { rgb: "003366" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+            if (C === 0) {
+              ageWs['!merges'] = ageWs['!merges'] || [];
+              ageWs['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 8 } });
+            }
+          }
+          else if (R === 2 || R === 3) {
+            ageWs[cellAddress].s = {
+              font: { sz: 11, color: { rgb: "666666" } },
+              alignment: { horizontal: "center" }
+            };
+            if (C === 0) {
+              ageWs['!merges'] = ageWs['!merges'] || [];
+              ageWs['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 8 } });
+            }
+          }
+          else if (R === 5) {
+            ageWs[cellAddress].s = {
+              font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "3399FF" } },
+              alignment: { horizontal: "center", vertical: "center", wrapText: true },
+              border: {
+                top: { style: "thin", color: { rgb: "CCE0FF" } },
+                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
+                left: { style: "thin", color: { rgb: "CCE0FF" } },
+                right: { style: "thin", color: { rgb: "CCE0FF" } }
+              }
+            };
+          }
+          else if (R > 5 && R < ageWsData.length - 1) {
+            ageWs[cellAddress].s = {
+              font: { sz: 11 },
+              alignment: { 
+                horizontal: (C >= 2 && C <= 8) ? "right" : "left",
+                vertical: "center"
+              },
+              border: {
+                top: { style: "thin", color: { rgb: "E6F2FF" } },
+                bottom: { style: "thin", color: { rgb: "E6F2FF" } },
+                left: { style: "thin", color: { rgb: "E6F2FF" } },
+                right: { style: "thin", color: { rgb: "E6F2FF" } }
+              },
+              fill: { fgColor: { rgb: "FFFFFF" } }
+            };
+            
+            if (C >= 2 && C <= 8) {
+              ageWs[cellAddress].z = '"Rs. "#,##0.00';
+            }
+          }
+          else if (R === ageWsData.length - 1) {
+            ageWs[cellAddress].s = {
+              font: { bold: true, sz: 12, color: { rgb: "00264D" } },
+              fill: { fgColor: { rgb: "E6F2FF" } },
+              alignment: { 
+                horizontal: (C >= 2 && C <= 8) ? "right" : "right",
+                vertical: "center"
+              },
+              border: {
+                top: { style: "medium", color: { rgb: "3399FF" } },
+                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
+                left: { style: "thin", color: { rgb: "CCE0FF" } },
+                right: { style: "thin", color: { rgb: "CCE0FF" } }
+              }
+            };
+            
+            if (C >= 2 && C <= 8) {
+              ageWs[cellAddress].z = '"Rs. "#,##0.00';
+            }
+          }
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(wb, ageWs, "Age Analysis");
+      
+      const fileName = `Age Analysis Comparison_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    }
+
+    // All existing functions remain the same
     async function showSVATInvoices() {
       const resultsDiv = document.getElementById('results');
       resultsDiv.innerHTML = `<div class="not-found"><i class="fas fa-spinner fa-spin"></i> Loading SVAT invoices...</div>`;
@@ -2520,7 +3404,6 @@
       XLSX.writeFile(wb, fileName);
     }
 
-    // All existing functions remain the same
     async function showInvoicesByAge(ageRange) {
       const resultsDiv = document.getElementById('results');
       resultsDiv.innerHTML = `<div class="not-found"><i class="fas fa-spinner fa-spin"></i> Loading invoices for ${ageRange} days...</div>`;
@@ -2806,6 +3689,12 @@
     function downloadAgeFilterExcel(ageRange) {
       const wb = XLSX.utils.book_new();
       
+      const reportDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
       let titleText = '';
       switch(ageRange) {
         case '0-30':
@@ -2827,12 +3716,6 @@
           titleText = 'Invoices & Excess Payments (More than 360 Days)';
           break;
       }
-      
-      const reportDate = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
       
       const wsData = [];
       
@@ -2878,7 +3761,7 @@
             '',
             '',
             '',
-            parseFloat(totalsRow.cells[5].textContent.replace(/,/g, '').replace(/Rs\.\s*/, '') || 0),
+            parseFloat(totalsRow.cells[5].textContent.replace(/,/g, '').replace(/Rs\.\s*/, '').replace(/[()]/g, '') || 0),
             ''
           ];
           wsData.push(totalsData);
@@ -3253,39 +4136,39 @@
         'Total Outstanding'
       ]);
       
-      const ageAnalysisArray = currentView === 'ageAnalysis' ? 
-        (document.querySelector('#results .age-table tbody') ? 
-          Array.from(document.querySelector('#results .age-table tbody').rows).slice(0, -1) : []) : [];
-      
-      ageAnalysisArray.forEach(row => {
-        const rowData = [];
-        for (let i = 0; i < row.cells.length; i++) {
-          let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
-          
-          if (i >= 2 && i <= 8) {
-            cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
-            cellValue = parseFloat(cellValue) || 0;
+      const ageAnalysisTable = document.querySelector('#results .age-table tbody');
+      if (ageAnalysisTable) {
+        const rows = Array.from(ageAnalysisTable.rows).slice(0, -1);
+        rows.forEach(row => {
+          const rowData = [];
+          for (let i = 0; i < row.cells.length; i++) {
+            let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
+            
+            if (i >= 2 && i <= 8) {
+              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
+              cellValue = parseFloat(cellValue) || 0;
+            }
+            
+            rowData.push(cellValue);
           }
-          
-          rowData.push(cellValue);
-        }
-        wsData.push(rowData);
-      });
-      
-      const totalsRow = document.querySelector('#results .age-table tbody tr:last-child');
-      if (totalsRow) {
-        const totalsData = [];
-        for (let i = 0; i < totalsRow.cells.length; i++) {
-          let cellValue = totalsRow.cells[i].innerText || totalsRow.cells[i].textContent || '';
-          
-          if (i >= 2 && i <= 8) {
-            cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
-            cellValue = parseFloat(cellValue) || 0;
+          wsData.push(rowData);
+        });
+        
+        const totalsRow = ageAnalysisTable.rows[ageAnalysisTable.rows.length - 1];
+        if (totalsRow) {
+          const totalsData = [];
+          for (let i = 0; i < totalsRow.cells.length; i++) {
+            let cellValue = totalsRow.cells[i].innerText || totalsRow.cells[i].textContent || '';
+            
+            if (i >= 2 && i <= 8) {
+              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
+              cellValue = parseFloat(cellValue) || 0;
+            }
+            
+            totalsData.push(cellValue);
           }
-          
-          totalsData.push(cellValue);
+          wsData.push(totalsData);
         }
-        wsData.push(totalsData);
       }
       
       const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -3746,235 +4629,6 @@
             };
             
             if (C >= 2 && C <= 5) {
-              ws[cellAddress].z = '"Rs. "#,##0.00';
-            }
-          }
-        }
-      }
-      
-      XLSX.utils.book_append_sheet(wb, ws, "Customer Summary");
-      
-      const fileName = `Customer Outstanding Summary_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-    }
-
-    function downloadSummaryPDFWithoutExcess() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-
-      doc.setFontSize(14);
-      doc.text('DOK Solutions Lanka (Pvt) Ltd', 40, 40);
-      doc.setFontSize(12);
-      doc.text('Customer Outstanding Summary', 40, 60);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 80);
-
-      const table = document.querySelector('#results table');
-      const tableData = [];
-      
-      const headers = ['Customer Name', 'Site Code', 'PA Outstanding (Rs.)', 'DA Outstanding (Rs.)', 'Total Outstanding (Rs.)'];
-      tableData.push(headers);
-      
-      const rows = table.querySelectorAll('tbody tr');
-      Array.from(rows).slice(0, -1).forEach(row => {
-        const rowData = [
-          row.cells[0].textContent,
-          row.cells[1].textContent,
-          row.cells[2].textContent,
-          row.cells[3].textContent,
-          row.cells[5].textContent
-        ];
-        tableData.push(rowData);
-      });
-      
-      const totalsRow = rows[rows.length - 1];
-      if (totalsRow) {
-        const totalsData = [
-          'GRAND TOTAL',
-          '',
-          totalsRow.cells[2].textContent,
-          totalsRow.cells[3].textContent,
-          totalsRow.cells[5].textContent
-        ];
-        tableData.push(totalsData);
-      }
-      
-      doc.autoTable({
-        head: [headers],
-        body: tableData.slice(1),
-        startY: 100,
-        theme: 'grid',
-        headStyles: { fillColor: [51,153,255], halign: 'center', fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [204,204,204], lineWidth: 0.1 },
-        columnStyles: { 
-          2: { halign: 'right' },
-          3: { halign: 'right' },
-          4: { halign: 'right' }
-        },
-        margin: { left: 40, right: 40 },
-      });
-
-      doc.save('Customer Outstanding Summary.pdf');
-    }
-
-    function downloadSummaryExcelWithoutExcess() {
-      const wb = XLSX.utils.book_new();
-      
-      const reportDate = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      const wsData = [];
-      
-      wsData.push(['DOK Solutions Lanka (Pvt) Ltd']);
-      wsData.push(['Customer Outstanding Summary']);
-      wsData.push([`As of: ${reportDate}`]);
-      wsData.push([`Generated: ${new Date().toLocaleString()}`]);
-      wsData.push([]);
-      
-      wsData.push([
-        'Customer Name', 
-        'Site Code', 
-        'PA Outstanding (Rs.)', 
-        'DA Outstanding (Rs.)', 
-        'Total Outstanding (Rs.)'
-      ]);
-      
-      const summaryTable = document.querySelector('#results table tbody');
-      if (summaryTable) {
-        const rows = Array.from(summaryTable.rows).slice(0, -1);
-        rows.forEach(row => {
-          const rowData = [];
-          for (let i = 0; i < row.cells.length; i++) {
-            if (i === 4) continue;
-            
-            let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
-            
-            if (i >= 2 && i <= 3) {
-              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
-              cellValue = parseFloat(cellValue) || 0;
-            } else if (i === 5) {
-              cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '');
-              cellValue = parseFloat(cellValue) || 0;
-            }
-            
-            rowData.push(cellValue);
-          }
-          wsData.push(rowData);
-        });
-        
-        const totalsRow = summaryTable.rows[summaryTable.rows.length - 1];
-        if (totalsRow) {
-          const totalsData = [
-            'GRAND TOTAL',
-            '',
-            parseFloat(totalsRow.cells[2].textContent.replace(/,/g, '').replace(/Rs\.\s*/, '') || 0),
-            parseFloat(totalsRow.cells[3].textContent.replace(/,/g, '').replace(/Rs\.\s*/, '') || 0),
-            parseFloat(totalsRow.cells[5].textContent.replace(/,/g, '').replace(/Rs\.\s*/, '') || 0)
-          ];
-          wsData.push(totalsData);
-        }
-      }
-      
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      const colWidths = [
-        { wch: 35 }, 
-        { wch: 15 }, 
-        { wch: 22 }, 
-        { wch: 22 }, 
-        { wch: 25 }
-      ];
-      ws['!cols'] = colWidths;
-      
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      
-      for (let R = 0; R <= range.e.r; ++R) {
-        for (let C = 0; C <= range.e.c; ++C) {
-          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-          if (!ws[cellAddress]) continue;
-          
-          if (R === 0) {
-            ws[cellAddress].s = {
-              font: { bold: true, sz: 16, color: { rgb: "00264D" } },
-              alignment: { horizontal: "center", vertical: "center" }
-            };
-            if (C === 0) {
-              ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
-            }
-          }
-          else if (R === 1) {
-            ws[cellAddress].s = {
-              font: { bold: true, sz: 14, color: { rgb: "003366" } },
-              alignment: { horizontal: "center", vertical: "center" }
-            };
-            if (C === 0) {
-              ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
-            }
-          }
-          else if (R === 2 || R === 3) {
-            ws[cellAddress].s = {
-              font: { sz: 11, color: { rgb: "666666" } },
-              alignment: { horizontal: "center" }
-            };
-            if (C === 0) {
-              ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 4 } });
-            }
-          }
-          else if (R === 5) {
-            ws[cellAddress].s = {
-              font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } },
-              fill: { fgColor: { rgb: "3399FF" } },
-              alignment: { horizontal: "center", vertical: "center", wrapText: true },
-              border: {
-                top: { style: "thin", color: { rgb: "CCE0FF" } },
-                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
-                left: { style: "thin", color: { rgb: "CCE0FF" } },
-                right: { style: "thin", color: { rgb: "CCE0FF" } }
-              }
-            };
-          }
-          else if (R > 5 && R < wsData.length - 1) {
-            ws[cellAddress].s = {
-              font: { sz: 11 },
-              alignment: { 
-                horizontal: (C >= 2 && C <= 4) ? "right" : "left",
-                vertical: "center"
-              },
-              border: {
-                top: { style: "thin", color: { rgb: "E6F2FF" } },
-                bottom: { style: "thin", color: { rgb: "E6F2FF" } },
-                left: { style: "thin", color: { rgb: "E6F2FF" } },
-                right: { style: "thin", color: { rgb: "E6F2FF" } }
-              },
-              fill: { fgColor: { rgb: "FFFFFF" } }
-            };
-            
-            if (C >= 2 && C <= 4) {
-              ws[cellAddress].z = '"Rs. "#,##0.00';
-            }
-          }
-          else if (R === wsData.length - 1) {
-            ws[cellAddress].s = {
-              font: { bold: true, sz: 12, color: { rgb: "00264D" } },
-              fill: { fgColor: { rgb: "E6F2FF" } },
-              alignment: { 
-                horizontal: (C >= 2 && C <= 4) ? "right" : "right",
-                vertical: "center"
-              },
-              border: {
-                top: { style: "medium", color: { rgb: "3399FF" } },
-                bottom: { style: "thin", color: { rgb: "CCE0FF" } },
-                left: { style: "thin", color: { rgb: "CCE0FF" } },
-                right: { style: "thin", color: { rgb: "CCE0FF" } }
-              }
-            };
-            
-            if (C >= 2 && C <= 4) {
               ws[cellAddress].z = '"Rs. "#,##0.00';
             }
           }
@@ -4530,6 +5184,16 @@
       wsData.push([`Generated: ${new Date().toLocaleString()}`]);
       wsData.push([]);
       
+      wsData.push([
+        'Customer Name', 
+        'Site Code', 
+        'Invoice No / Ref', 
+        'Date', 
+        'Description', 
+        'Amount (Rs.)', 
+        'Due Days'
+      ]);
+      
       const tables = document.querySelectorAll('#results table');
       let currentRow = 6;
       
@@ -4545,29 +5209,23 @@
           currentRow++;
         }
         
-        const headers = [];
-        const headerCells = table.querySelectorAll('thead th');
-        headerCells.forEach(cell => {
-          headers.push(cell.textContent);
-        });
-        wsData.push(headers);
-        currentRow++;
-        
         const rows = table.querySelectorAll('tbody tr');
-        rows.forEach(row => {
+        Array.from(rows).forEach((row, rowIndex) => {
+          // Skip the total row
+          if (rowIndex === rows.length - 1) return;
+          
           const rowData = [];
-          const cells = row.querySelectorAll('td');
-          cells.forEach((cell, index) => {
-            let cellValue = cell.innerText || cell.textContent || '';
+          for (let i = 0; i < row.cells.length; i++) {
+            let cellValue = row.cells[i].innerText || row.cells[i].textContent || '';
             
-            // Fix: Correctly identify the amount column (index 4) and format it
-            if (index === 4) {
+            // Fix: Correctly identify the amount column (index 5) and format it
+            if (i === 5) {
               cellValue = cellValue.replace(/,/g, '').replace(/Rs\.\s*/, '').replace(/[()]/g, '');
               cellValue = parseFloat(cellValue) || 0;
             }
             
             rowData.push(cellValue);
-          });
+          }
           wsData.push(rowData);
           currentRow++;
         });
@@ -4577,6 +5235,7 @@
       
       const colWidths = [
         { wch: 35 }, 
+        { wch: 20 }, 
         { wch: 20 }, 
         { wch: 15 }, 
         { wch: 25 }, 
@@ -4598,8 +5257,8 @@
               alignment: { horizontal: "center", vertical: "center" }
             };
             if (C === 0) {
-              ws['!merges'] = ws['merges'] || [];
-              ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
+              ws['!merges'] = ws['!merges'] || [];
+              ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } });
             }
           }
           else if (R === 1) {
@@ -4609,7 +5268,7 @@
             };
             if (C === 0) {
               ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 5 } });
+              ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 6 } });
             }
           }
           else if (R === 2 || R === 3) {
@@ -4618,19 +5277,25 @@
               alignment: { horizontal: "center" }
             };
             if (C === 0) {
-              ws['!merges'] = ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 5 } });
+              ws['!merges'] = ws['!merges'] || [];
+              ws['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 6 } });
             }
           }
           else if (wsData[R] && wsData[R].length === 1 && wsData[R][0].includes('Outstanding')) {
             ws[cellAddress].s = {
               font: { bold: true, sz: 13, color: { rgb: "003366" } },
               alignment: { horizontal: "left", vertical: "center" },
-              fill: { fgColor: { rgb: "F0F8FF" } }
+              fill: { fgColor: { rgb: "F0F8FF" } },
+              border: {
+                top: { style: "thin", color: { rgb: "E6F2FF" } },
+                bottom: { style: "thin", color: { rgb: "E6F2FF" } },
+                left: { style: "thin", color: { rgb: "E6F2FF" } },
+                right: { style: "thin", color: { rgb: "E6F2FF" } }
+              }
             };
             if (C === 0) {
-              ws['!merges'] = ws['!merges'] = ws['!merges'] || [];
-              ws['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 5 } });
+              ws['!merges'] = ws['!merges'] || [];
+              ws['!merges'].push({ s: { r: R, c: 0 }, e: { r: R, c: 6 } });
             }
           }
           else if (wsData[R] && wsData[R].length > 1 && 
@@ -4652,7 +5317,7 @@
             ws[cellAddress].s = {
               font: { sz: 11 },
               alignment: { 
-                horizontal: (C === 4) ? "right" : "left",
+                horizontal: (C === 5) ? "right" : "left",
                 vertical: "center"
               },
               border: {
@@ -4664,10 +5329,10 @@
               fill: { fgColor: { rgb: "FFFFFF" } }
             };
             
-            if (C === 4) {
+            if (C === 5) {
               ws[cellAddress].z = '"Rs. "#,##0.00';
             }
-            else if (C === 5) {
+            else if (C === 6) {
               ws[cellAddress].z = '#,##0';
             }
           }
@@ -4677,7 +5342,7 @@
               font: { bold: true, sz: 12, color: { rgb: "00264D" } },
               fill: { fgColor: { rgb: "E6F2FF" } },
               alignment: { 
-                horizontal: (C === 4) ? "right" : "right",
+                horizontal: (C === 5) ? "right" : "right",
                 vertical: "center"
               },
               border: {
@@ -4688,7 +5353,7 @@
               }
             };
             
-            if (C === 4) {
+            if (C === 5) {
               ws[cellAddress].z = '"Rs. "#,##0.00';
             }
           }
@@ -4931,9 +5596,10 @@
       if (currentSiteCode) {
         doc.text(`Site Code: ${currentSiteCode}`, 40, 80);
       }
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 100);
 
       const tables = document.querySelectorAll('#results table');
-      let startY = 100;
+      let startY = 120;
 
       tables.forEach(table => {
         // Fix: Right-align the amount column (index 4) and center-align due days (index 5)
@@ -4948,7 +5614,7 @@
             5: { halign: 'center' }  // Due days column
           },
           margin: { left: 40, right: 40 },
-          // Fix: Make sure the total row is at the bottom of the invoice values
+          // Fix: Make sure to total row is at the bottom of invoice values
           didParseCell: function(data) {
             // Check if this is the total row
             if (data.row.raw && data.row.raw.cells && 
@@ -4967,7 +5633,7 @@
       const totalText = document.querySelector('#results .grand-total')?.innerText || '';
       if (totalText) {
         const cleanTotalText = totalText.replace(' - Without Excess Payments', '');
-        doc.text(cleanTotalText, 40, startY + 8);
+        doc.text(cleanText, 40, doc.lastAutoTable.finalY + 18);
       }
 
       const fileName = currentSiteCode
@@ -4977,25 +5643,27 @@
     }
 
     function goBack() {
-      // If navigation history has items, go back to the previous state
+      // If navigation history has items, go back to previous state
       if (navigationHistory.length > 1) {
         // Remove current state from history
         navigationHistory.pop();
         
-        // Get the previous state
+        // Get previous state
         const previousState = navigationHistory[navigationHistory.length - 1];
         
-        // Restore the previous state
+        // Restore previous state
         currentSortType = previousState.sortType;
         currentView = previousState.view;
         
-        // Re-render the previous view with its data and sort type
+        // Re-render previous view with its data and sort type
         if (previousState.view === 'summary') {
           renderCustomerSummary(previousState.data);
         } else if (previousState.view === 'summaryWithoutExcess') {
           renderCustomerSummaryWithoutExcess(previousState.data);
         } else if (previousState.view === 'ageAnalysis') {
           renderAgeAnalysis(previousState.data);
+        } else if (previousState.view === 'ageAnalysisComparison') {
+          renderAgeAnalysisWithComparison(previousState.data, previousState.comparisonData);
         } else if (previousState.view === 'svat') {
           renderSVATInvoices(previousState.data);
         } else if (previousState.view === 'ageFilter') {
@@ -5016,7 +5684,7 @@
         
         // Hide age filter container when going back to main menu
         document.getElementById('ageFilterContainer').classList.remove('show');
-        const button = document.querySelector('.search-box:nth-child(8) button');
+        const button = document.querySelector('.search-box:nth-child(9) button');
         button.innerHTML = '<i class="fas fa-filter"></i> Show Age Filter Options';
       }
     }
